@@ -124,6 +124,7 @@ func exchangeRatesByCurrency(rates []exchange) map[string]float32 {
 	return mappedByCurrency
 }
 
+// accept strings like /1986-09-03 and /1986-09-03/USD
 var routingRegexp = regexp.MustCompile(`/(\d{4}-\d{2}-\d{2})/?([A-Za-z]{3})?`)
 
 func newCurrencyExchangeServer() http.Handler {
@@ -135,16 +136,18 @@ func newCurrencyExchangeServer() http.Handler {
 			return
 		}
 
-		// parts consists of three things: [0] => path, [1] => date, [2] => currency
 		parts := routingRegexp.FindAllStringSubmatch(req.URL.Path, -1)[0]
+		requestedDate := parts[1]
+		requestedCurrency := parts[2]
+
 		enc := json.NewEncoder(w)
-		if _, ok := exchangeRates[parts[1]]; !ok {
+		if _, ok := exchangeRates[requestedDate]; !ok {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 
-		var exs = exchangeRates[parts[1]]
-		if parts[2] == "" {
+		var exs = exchangeRates[requestedDate]
+		if requestedCurrency == "" {
 			enc.Encode(exchangeRatesByCurrency(exs))
 		} else {
 			for _, rate := range exs {
