@@ -7,8 +7,10 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"regexp"
 	"runtime"
+	"runtime/pprof"
 	"time"
 )
 
@@ -30,11 +32,11 @@ type exchange struct {
 // EUR is not present because all exchange rates are a reference to the EUR
 var desiredCurrencies = map[string]struct{}{
 	"USD": struct{}{},
+	"GBP": struct{}{},
 	"JPY": struct{}{},
 	"BGN": struct{}{},
 	"CZK": struct{}{},
 	"DKK": struct{}{},
-	"GBP": struct{}{},
 	"HUF": struct{}{},
 	"LTL": struct{}{},
 	"PLN": struct{}{},
@@ -102,6 +104,8 @@ func updateExchangeRates(data io.Reader) error {
 			exchangeRates[c.Date] = filterExchangeRates(c)
 		}
 	}
+
+	runtime.GC()
 
 	return nil
 }
@@ -183,10 +187,20 @@ func printMemoryUsage() {
 	fmt.Printf("total memory usage: %2.3f MB\n", float32(memStats.Alloc)/1024./1024.)
 }
 
+func writeMemoryProfile() {
+	f, err := os.Create("mem.mprof")
+	if err != nil {
+		log.Fatal(err)
+	}
+	pprof.WriteHeapProfile(f)
+	f.Close()
+}
+
 func main() {
 	go updateExchangeRatesPeriodically()
 
 	printMemoryUsage()
+	writeMemoryProfile()
 	log.Printf("listening on :8080")
 	log.Fatal(http.ListenAndServe(":8080", newCurrencyExchangeServer()))
 }
